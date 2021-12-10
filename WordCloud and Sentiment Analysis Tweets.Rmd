@@ -1,0 +1,321 @@
+---
+title: "Sentiment Analysis and WordCloud Twitter"
+author: "Sachin Sharma"
+date: "12/8/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+
+library(twitteR)
+library(rtweet)
+# plotting and pipes - tidyverse!
+library(ggplot2)
+library(dplyr)
+#install.packages("tidytext")
+
+# text mining library
+
+library(tidytext)
+#install.packages("'base64enc")
+library(base64enc)
+
+#api_key <- 'XXX'
+#api_secret <- 'XXX'
+#access_token <- 'XXX'
+#access_token_secret <-'XXX'
+  
+#install.packages("twitteR")
+library(twitteR)
+```
+
+
+
+```{r}
+#setup_twitter_oauth(api_key,api_secret,access_token,access_token_secret)
+
+```
+```{r}
+
+#tweets <- searchTwitter("$Shib",n=500,lang = "en")
+
+#shib <- twListToDF(tweets)
+
+#write.csv(shib,"shib.csv")
+
+shib_df<- read.csv("shib.csv")
+
+View(shib_df)
+
+```
+
+# Creating corpus 
+
+```{r}
+library(tm)
+
+corpus <- iconv(shib_df$text, to = "ASCII")
+corpus <- Corpus(VectorSource(corpus))
+
+inspect(corpus[1:5])
+
+gc()
+
+```
+# Lets do some cleaning here 
+
+```{r}
+
+library(stringr)
+corpus <- tm_map(corpus, tolower)
+
+#inspect(corpus[1:5])
+
+corpus <- tm_map(corpus,removePunctuation)
+
+corpus <- tm_map(corpus, removeNumbers)
+
+#inspect(corpus[1:5])
+
+cleanset <- tm_map(corpus, removeWords,stopwords("en"))
+
+removeURL <- function(x)gsub('http[[:alnum:]]*','',x)
+
+cleanset <- tm_map(cleanset,content_transformer(removeURL))
+
+cleanset_final <- gsub("<NA>","",cleanset)
+cleanset <- tm_map(cleanset, stripWhitespace)
+
+
+#inspect(cleanset[1:5])
+
+
+```
+
+
+
+```{r}
+tdm <- TermDocumentMatrix(cleanset)
+
+tdm <- as.matrix(tdm)
+
+#tdm[1:10,1:10]
+
+
+```
+
+# Removing shib, shibainu,shibarmy,shibs from the data 
+
+```{r}
+
+
+cleanset <- tm_map(cleanset, removeWords,c("shib","shibainu","shibs","shibarmy"))
+
+tdm <- TermDocumentMatrix(cleanset)
+
+tdm <- as.matrix(tdm)
+
+```
+
+
+# Lets make bar plot of the tdm 
+
+```{r}
+
+w <- rowSums(tdm)
+
+#w
+
+```
+
+#tdm
+
+# Now create a subset , of w 
+
+```{r}
+w <- subset(w,w>10)
+
+#w
+
+barplot(w,
+        las = 2,
+        col = rainbow(50))
+
+```
+# From the above graph we can see that words like cryptobeast,crypto,hashtags,urt,ubufef,now are not useful for the analysis, so lets remove these words as well
+
+```{r}
+
+cleanset <- tm_map(cleanset, removeWords,c("cryptobeast","crypto","hashtags","urt","now"))
+
+tdm <- TermDocumentMatrix(cleanset)
+
+tdm <- as.matrix(tdm)
+
+w <- rowSums(tdm)
+#w
+
+w <- subset(w,w>10)
+
+
+
+barplot(w,
+        las = 2,
+        col = rainbow(29))
+
+```
+# Lets make wordcloud with the help of libraries wordcloud and wordcloud2
+
+
+
+```{r}
+
+library(wordcloud)
+
+w <- sort(rowSums(tdm),decreasing = TRUE)
+
+wordcloud(words = names(w),
+          freq = w)
+
+```
+# Biggest word shows frequency of these words are more in the data , we can make some changes in word  cloud with the help of following code : 
+
+```{r}
+wordcloud(words = names(w),
+          freq = w,
+          max.words = 150,
+          min.freq = 5,
+          random.order = F,
+          colors = brewer.pal(20,"Dark2"))
+
+```
+
+# We can also use scale , to represent most frequent words and least frequent words 
+
+
+```{r}
+wordcloud(words = names(w),
+          freq = w,
+          max.words = 150,
+          min.freq = 5,
+          random.order = F,
+          colors = brewer.pal(20,"Dark2"),
+          scale = c(6,0.3))
+```
+
+# We can also use rotation percentage : 
+
+```{r}
+
+wordcloud(words = names(w),
+          freq = w,
+          max.words = 150,
+          min.freq = 5,
+          random.order = F,
+          colors = brewer.pal(20,"Dark2"),
+          scale = c(6,0.3),
+          rot.per = 0.4)
+
+```
+
+# We can use wordcloud2 to make more fancy wordcloud : 
+
+```{r}
+library(wordcloud2)
+
+w <- data.frame(names(w),w)
+
+#w
+colnames(w)<- c('word','freq')
+#w
+
+wordcloud2(w,
+           size = 0.8,
+           shape = 'circle')
+
+```
+
+
+```{r}
+
+wordcloud2(w,
+           size = 0.6,
+           shape = 'star')
+
+
+```
+
+
+
+```{r}
+wordcloud2(w,
+           size = 0.5,
+           shape = 'star',
+           rotateRatio = 0.5,
+           minSize = 1)
+
+```
+
+
+# Sentiment Analysis : 
+
+
+
+```{r}
+
+#install.packages("syuzhet")
+library(syuzhet)
+library(lubridate)
+library(ggplot2)
+library(scales)
+library(reshape2)
+library(dplyr)
+
+shibainu <- read.csv("shib.csv")
+
+View(shibainu)
+
+shibainu <- iconv(shibainu$text, to= "utf-8")
+
+# Obtain sentiment scores 
+
+s <- get_nrc_sentiment(shibainu)
+
+#head(s)
+
+
+```
+
+
+```{r}
+
+shibainu[2]
+
+
+```
+
+
+```{r}
+
+get_nrc_sentiment('WINNER')
+```
+```{r}
+shibainu[6]
+```
+
+# Plotting bar plot 
+
+```{r}
+
+barplot(colSums(s),
+        las = 2,
+        col = rainbow(10),
+        ylab = 'Count',
+        xlab = "Sentiment Analysis of Shibainu Tweets")
+
+```
+
